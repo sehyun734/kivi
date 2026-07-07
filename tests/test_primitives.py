@@ -16,14 +16,14 @@ checker = Checker("common/primitives.py")
 
 
 checker.section("pack/unpack 무손실")
-for bits in (2, 4):
+for bits in [2, 4]:
     codes = torch.randint(0, 2**bits, (batch_size, n_heads, n_tokens, head_dim), dtype=torch.uint8)
     packed = _pack(codes, bits)
     unpacked = _unpack(packed, bits)
     checker.check("codes 완전 복원", torch.equal(unpacked, codes), f"bits={bits}")
 
 checker.section("quant/dequant 라운드트립")
-for bits in (2, 4):
+for bits in [2, 4]:
     k_deq = dequant(quant(x, bits, group_size, -2), bits, group_size, -2)
     mae_k = mae(x, k_deq)
     checker.check(f"k shape 보존", k_deq.shape == x.shape, f"bits={bits}")

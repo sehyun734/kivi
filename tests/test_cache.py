@@ -1,5 +1,6 @@
 import torch
 
+from common.primitives import Quantized
 from kivi.cache import Cache
 from tests.diagnostics import mae
 from tests.harness import Checker
@@ -8,10 +9,10 @@ torch.manual_seed(0)
 
 # setting
 k_bits, v_bits = 2, 2
-batch_size, n_heads, n_tokens, head_dim = 1, 2, 200, 64
+batch_size, n_heads, n_tokens, head_dim = 1, 8, 200, 64
 group_size, res_len = 32, 32
-k = torch.randn(batch_size, n_heads, n_tokens, head_dim)
-v = torch.randn(batch_size, n_heads, n_tokens, head_dim)
+k = torch.randn(batch_size, n_heads, n_tokens, head_dim, dtype=torch.float16)
+v = torch.randn(batch_size, n_heads, n_tokens, head_dim, dtype=torch.float16)
 
 
 checker = Checker("kivi/cache.py")
@@ -38,3 +39,24 @@ checker.check("K_res 원본과 무손실", torch.equal(k_bulk[..., -n_res:, :], 
 checker.check("V_res 원본과 무손실", torch.equal(v_bulk[..., -n_res:, :], v[..., -n_res:, :]))
 mae_grp = mae(k_bulk[..., :n_grp, :], k[..., :n_grp, :])
 checker.check("K_grp 파트 손실 존재", mae_grp > 1e-3, f"mae={mae_grp:.4f} n_grp={n_grp}")
+
+
+def bytes(x):
+    if x is None:
+        return 0
+    elif isinstance(x, Quantized):
+        return sum(t.numel() * t.element_size() for t in x)
+    return x.numel() * x.element_size()
+
+
+fp_bytes = k.numel() * k.element_size() + v.numel() * v.element_size()
+checker.section(f"실제 메모리 절약 여부 (fp_bytes={fp_bytes})")
+for bits in [2, 4]:
+    cache = Cache(bits, bits, group_size, res_len)
+    cache.append(k, v)
+    int_bytes = sum(bytes(t) for t in [cache.K_grp, cache.V_grp, cache.K_res, cache.V_res])
+    checker.check(
+        "fp 대비 메모리 절약",
+        fp_bytes > int_bytes,
+        f"bits={bits} bytes={int_bytes}({int_bytes/fp_bytes:.0%})",
+    )
