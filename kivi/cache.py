@@ -13,8 +13,8 @@ def _cat(old: Optional[Quantized], new: Quantized) -> Quantized:
         return new
     return Quantized(
         torch.cat([old.codes, new.codes], dim=2),
-        torch.cat([old.s, new.s], dim=2),
         torch.cat([old.z, new.z], dim=2),
+        torch.cat([old.s, new.s], dim=2),
     )
 
 
@@ -24,8 +24,12 @@ class Cache:
         self.v_bits = v_bits
         self.group_size = group_size
         self.res_len = res_len
+
+        # Uint8로 저장
         self.K_grp: Optional[Quantized] = None
         self.V_grp: Optional[Quantized] = None
+
+        # FP로 저장
         self.K_res: Optional[KV] = None
         self.V_res: Optional[KV] = None
 
@@ -38,15 +42,15 @@ class Cache:
         self.K_res = k if self.K_res is None else torch.cat([self.K_res, k], dim=-2)
         self.V_res = v if self.V_res is None else torch.cat([self.V_res, v], dim=-2)
 
-        n_res = self.K_res.shape[-2]
+        n_res = self.K_res.shape[2]
         n_flush = ((n_res - self.res_len) // self.group_size) * self.group_size
         if n_flush <= 0:
             return
 
         K_flush, self.K_res = self.K_res[..., :n_flush, :], self.K_res[..., n_flush:, :]
         V_flush, self.V_res = self.V_res[..., :n_flush, :], self.V_res[..., n_flush:, :]
-        K_flush_q = quant(K_flush, self.k_bits, self.group_size, -2)
-        V_flush_q = quant(V_flush, self.v_bits, self.group_size, -1)
+        K_flush_q = quant(K_flush, self.k_bits, self.group_size, -2)  # token-wise
+        V_flush_q = quant(V_flush, self.v_bits, self.group_size, -1)  # channel-wise
         self.K_grp = _cat(self.K_grp, K_flush_q)
         self.V_grp = _cat(self.V_grp, V_flush_q)
 

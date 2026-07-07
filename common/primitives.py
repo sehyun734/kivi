@@ -7,8 +7,8 @@ from common.shapes import KV, Packed, Param, Unpacked
 
 class Quantized(NamedTuple):
     codes: Packed
-    s: Param
     z: Param
+    s: Param
 
 
 def quant(x: KV, bits: int, group_size: int, dim: Literal[-2, -1], eps: float = 1e-5) -> Quantized:
@@ -28,9 +28,7 @@ def dequant(q: Quantized, bits: int, group_size: int, dim: Literal[-2, -1]) -> K
     codes = _unpack(q.codes, bits)
     axis = dim % codes.ndim
     dim_size = codes.shape[axis]
-    grouped = codes.reshape(
-        *codes.shape[:axis], dim_size // group_size, group_size, *codes.shape[axis + 1 :]
-    )
+    grouped = codes.reshape(*codes.shape[:axis], dim_size // group_size, group_size, *codes.shape[axis + 1 :])
     x = grouped.float() * q.s + q.z
     return x.reshape(codes.shape)
 
