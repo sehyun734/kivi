@@ -60,6 +60,7 @@ class Cache:
     ]:
         if self.K_grp is None:
             return self.K_res, self.V_res
+        # 속도병목: 매 디코딩 스텝마다 과거 전체를 dequant 및 unpack
         K_grp_deq = dequant(self.K_grp, self.k_bits, self.group_size, -2)
         V_grp_deq = dequant(self.V_grp, self.v_bits, self.group_size, -1)
         return (
