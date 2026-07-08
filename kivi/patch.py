@@ -28,7 +28,7 @@ def _forward(self: Module, h: Hidden, *args, **kwargs) -> tuple[Hidden, None]:
     q, k, v = adapter.qkv(self, h)
     past_len = cache.len()
     cache.append(k, v)
-    k_full, v_full = cache.get()
+    k_full, v_full = cache.get()  # (주의) 결국 attention 계산 순간에는 메모리 사용 동일
 
     # GQA의 경우 kv와 q의 head개수가 다를 수 있음
     k_full = _repeat_kv(k_full, n_q_heads // n_kv_heads)
