@@ -1,40 +1,21 @@
-from torch import Module
+from torch.nn import Module
 
+from cache import Cache
 from models.base import Adapter
-from common.shapes import KV, Query, Hidden
+from shapes import KV, Query, Hidden
 
 
 class GPT2(Adapter):
-    """
-    GPT2Model(
-        (wte): Embedding(50257, 768)
-        (wpe): Embedding(1024, 768)
-        (drop): Dropout(p=0.1, inplace=False)
-        (h): ModuleList(
-            (0-11): 12 x GPT2Block(
-            (ln_1): LayerNorm((768,), eps=1e-05, elementwise_affine=True, bias=True)
-            (attn): GPT2Attention(
-                (c_attn): Conv1D(nf=2304, nx=768)
-                (c_proj): Conv1D(nf=768, nx=768)
-                (attn_dropout): Dropout(p=0.1, inplace=False)
-                (resid_dropout): Dropout(p=0.1, inplace=False)
-            )
-            (ln_2): LayerNorm((768,), eps=1e-05, elementwise_affine=True, bias=True)
-            (mlp): GPT2MLP(
-                (c_fc): Conv1D(nf=3072, nx=768)
-                (c_proj): Conv1D(nf=768, nx=3072)
-                (act): NewGELUActivation()
-                (dropout): Dropout(p=0.1, inplace=False)
-            )
-        )
-        (ln_f): LayerNorm((768,), eps=1e-05, elementwise_affine=True, bias=True)
-    )
-    """
-
     def __init__(self):
         from transformers.models.gpt2.modeling_gpt2 import GPT2Attention
 
         self.attn = GPT2Attention
+
+    def cache(self, **kwargs) -> Cache:
+        pass
+
+    def layer_i(self, m: Module) -> int:
+        pass
 
     def dims(self, m: Module) -> tuple[int, int, int]:
         return m.num_heads, m.num_heads, m.head_dim
@@ -52,5 +33,8 @@ class GPT2(Adapter):
     def scale(self, m: Module) -> float:
         return m.scaling
 
-    def out(self, m: Module, x: Hidden) -> Hidden:
-        return m.c_proj(x)
+    def out(self, m: Module, h: Hidden) -> Hidden:
+        return m.c_proj(h)
+
+    def rope(self, m: Module, q: Query, k: KV, **kwargs) -> tuple[Query, KV]:
+        return q, k

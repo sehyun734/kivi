@@ -2,34 +2,34 @@ from typing import Literal, NamedTuple
 
 import torch
 
-from common.shapes import KV, Packed, Param, Unpacked
+from shapes import KV, Packed, Param, Unpacked
 
 
 class Quantized(NamedTuple):
     codes: Packed
-    z: Param
     s: Param
+    z: Param
 
 
-def quant(x: KV, bits: int, group_size: int, dim: Literal[-2, -1], eps: float = 1e-5) -> Quantized:
-    # -2(channel-wise): ... n_groups group_size head_dim
-    # -1(token-wise):   ... n_tokens n_groups   group_size
+def quant(x: KV, bits: int, grp_size: int, dim: Literal[-2, -1], eps: float = 1e-5) -> Quantized:
+    # -2(channel-wise): ... n_grp grp_size head_dim
+    # -1(token-wise):   ... n_tokens n_grp   grp_size
     axis = dim % x.ndim
     dim_size = x.shape[axis]
-    grouped = x.reshape(*x.shape[:axis], dim_size // group_size, group_size, *x.shape[axis + 1 :])
-    qmax: int = 2**bits - 1
+    grouped = x.reshape(*x.shape[:axis], dim_size // grp_size, grp_size, *x.shape[axis + 1 :])
+    q_max: int = 2**bits - 1
     z = grouped.amin(dim=axis + 1, keepdim=True)
-    s = (grouped.amax(dim=axis + 1, keepdim=True) - z).clamp(min=eps) / qmax
-    codes = torch.round((grouped - z) / s).clamp(0, qmax).to(torch.uint8).reshape(x.shape)
-    return Quantized(_pack(codes, bits), z.float(), s.float())
+    s = (grouped.amax(dim=axis + 1, keepdim=True) - z).clamp(min=eps) / q_max
+    codes = torch.round((grouped - z) / s).clamp(0, q_max).to(torch.uint8).reshape(x.shape)
+    return Quantized(_pack(codes, bits), s.float(), z.float())
 
 
-def dequant(q: Quantized, bits: int, group_size: int, dim: Literal[-2, -1]) -> KV:
+def dequant(q: Quantized, bits: int, grp_size: int, dim: Literal[-2, -1]) -> KV:
     codes = _unpack(q.codes, bits)
     axis = dim % codes.ndim
     dim_size = codes.shape[axis]
-    grouped = codes.reshape(*codes.shape[:axis], dim_size // group_size, group_size, *codes.shape[axis + 1 :])
-    x = grouped.float() * q.s + q.z
+    grped = codes.reshape(*codes.shape[:axis], dim_size // grp_size, grp_size, *codes.shape[axis + 1 :])
+    x = grped.float() * q.s + q.z
     return x.reshape(codes.shape)
 
 
