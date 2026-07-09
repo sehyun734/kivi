@@ -25,19 +25,19 @@ class Cache(DynamicCache):
         self.v_bits = v_bits
         self.grp_size = grp_size
         self.res_len = res_len
-        # layer_i로 해당 레이어에서의 캐시된 kv접근?
+        # 레이어별 상태를 layer_i로 구분해 저장 (단일 객체가 모든 레이어의 KV 캐시 관리)
         self.K_grp: dict[int, Quantized] = {}  # Uint8로 저장
         self.V_grp: dict[int, Quantized] = {}
         self.K_res: dict[int, KV] = {}  # FP로 저장
         self.V_res: dict[int, KV] = {}
 
-    # Dynamic cache 자체 인터페이스 메서드
+    # 인터페이스: masked multi-head를 위한 과거 토큰 길이
     def get_seq_length(self, layer_i: int = 0) -> int:
         n_grp = self.K_grp[layer_i].codes.shape[-2] if layer_i in self.K_grp else 0
         n_res = self.K_res[layer_i].shape[-2] if layer_i in self.K_res else 0
         return n_grp + n_res
 
-    # DynamicCache 자체 인터페이스 메서드로 여기서 이번 레이어의 kv 캐싱값을 저장?
+    # 인터페이스: 새롭게 들어온 k,v를 저장하고 이 레이어의 전체(현재까지의) K,V를 반환
     def update(self, k: KV, v: KV, layer_i: int, *args, **kwargs) -> tuple[KV, KV]:
         self._append(k, v, layer_i)
         return self._get(layer_i)
@@ -48,7 +48,7 @@ class Cache(DynamicCache):
 
         n_res = K_res.shape[2]
         n_flush = ((n_res - self.res_len) // self.grp_size) * self.grp_size
-        if n_flush > 0:
+        if n_flush > 0:  # residual이 res_len을 넘어서면 그룹 양자화하여 저장
             K_flush, K_res = K_res[..., :n_flush, :], K_res[..., n_flush:, :]
             V_flush, V_res = V_res[..., :n_flush, :], V_res[..., n_flush:, :]
             K_flush_q = quant(K_flush, self.k_bits, self.grp_size, -2)  # channel-wise
