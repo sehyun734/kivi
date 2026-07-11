@@ -60,6 +60,7 @@ class Cache(DynamicCache):
     def _get(self, layer_i: int) -> tuple[KV, KV]:
         if layer_i not in self.K_grp:
             return self.K_res[layer_i], self.V_res[layer_i]
+        # 속도병목: 매 디코딩 스텝마다 과거 전체를 dequant 및 unpack
         K_grp_deq = dequant(self.K_grp[layer_i], self.k_bits, self.grp_size, -2)
         V_grp_deq = dequant(self.V_grp[layer_i], self.v_bits, self.grp_size, -1)
         return (
