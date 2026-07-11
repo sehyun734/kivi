@@ -11,6 +11,25 @@ class Quantized(NamedTuple):
     z: Param
 
 
+def _pack(codes: Unpacked, bits: int) -> Packed:
+    n_per_byte = 8 // bits
+    *lead, last = codes.shape
+    # 계산 시 overflow 방지 위한 int32
+    fields = codes.reshape(*lead, last // n_per_byte, n_per_byte).to(torch.int32)
+    shifts = torch.arange(n_per_byte, device=codes.device, dtype=torch.int32) * bits
+    # 비트필드가 겹치지 않아 sum이 OR의 역할을 수행하여 한 바이트로 병합
+    return (fields << shifts).sum(-1).to(torch.uint8)
+
+
+def _unpack(codes: Packed, bits: int) -> Unpacked:
+    n_per_byte = 8 // bits
+    mask = (1 << bits) - 1
+    shifts = torch.arange(n_per_byte, device=codes.device, dtype=torch.int32) * bits
+    fields = (codes.to(torch.int32).unsqueeze(-1) >> shifts) & mask
+    *lead, n_bytes, _ = fields.shape
+    return fields.reshape(*lead, n_bytes * n_per_byte).to(torch.uint8)
+
+
 def quant(x: KV, bits: int, grp_size: int, dim: Literal[-2, -1], eps: float = 1e-5) -> Quantized:
     # -2(channel-wise): ... n_grp grp_size head_dim
     # -1(token-wise):   ... n_tokens n_grp   grp_size
@@ -31,22 +50,3 @@ def dequant(q: Quantized, bits: int, grp_size: int, dim: Literal[-2, -1]) -> KV:
     grped = codes.reshape(*codes.shape[:axis], dim_size // grp_size, grp_size, *codes.shape[axis + 1 :])
     x = grped.float() * q.s + q.z
     return x.reshape(codes.shape)
-
-
-def _pack(codes: Unpacked, bits: int) -> Packed:
-    n_per_byte = 8 // bits
-    *lead, last = codes.shape
-    # 계산 시 overflow 방지 위한 int32
-    fields = codes.reshape(*lead, last // n_per_byte, n_per_byte).to(torch.int32)
-    shifts = torch.arange(n_per_byte, device=codes.device, dtype=torch.int32) * bits
-    # 비트필드가 겹치지 않아 sum이 OR의 역할을 수행하여 한 바이트로 병합
-    return (fields << shifts).sum(-1).to(torch.uint8)
-
-
-def _unpack(codes: Packed, bits: int) -> Unpacked:
-    n_per_byte = 8 // bits
-    mask = (1 << bits) - 1
-    shifts = torch.arange(n_per_byte, device=codes.device, dtype=torch.int32) * bits
-    fields = (codes.to(torch.int32).unsqueeze(-1) >> shifts) & mask
-    *lead, n_bytes, _ = fields.shape
-    return fields.reshape(*lead, n_bytes * n_per_byte).to(torch.uint8)

@@ -3,7 +3,7 @@ import torch
 from quant import Quantized
 from cache import Cache
 from tests.diagnostics import mae
-from tests.harness import Checker
+from tests.checker import Checker
 
 torch.manual_seed(0)
 

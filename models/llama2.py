@@ -1,10 +1,11 @@
 from torch.nn import Module
 
 from cache import Cache
-from models.base import Adapter
+from models.base import Adapter, register
 from shapes import KV, Query, Hidden
 
 
+@register("meta-llama/Llama-2")
 class Llama2(Adapter):
     def __init__(self):
         from transformers.models.llama.modeling_llama import LlamaAttention
@@ -12,7 +13,7 @@ class Llama2(Adapter):
         self.attn = LlamaAttention
 
     def cache(self, **kwargs) -> Cache:
-        return kwargs.get("past_key_value")
+        return kwargs.get("past_key_values")
 
     def layer_i(self, m: Module) -> int:
         return m.layer_idx

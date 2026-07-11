@@ -4,10 +4,27 @@ from torch.nn import Module
 
 from shapes import KV, Query, Hidden
 
+_ADAPTERS: dict[str, type["Adapter"]] = {}
+
+
+def register(key: str):
+    def deco(cls: type["Adapter"]) -> type["Adapter"]:  # 인스턴스가 아닌 클래스가 담기기에 type() 명시
+        _ADAPTERS[key] = cls
+        return cls
+
+    return deco
+
+
+def pick(model_name: str) -> "Adapter":
+    for key in sorted(_ADAPTERS, key=len, reverse=True):
+        if model_name.startswith(key):
+            return _ADAPTERS[key]()
+    raise KeyError
+
 
 class Adapter(ABC):
     def __init__(self):
-        self.attn: type[Module] | None = None
+        self.attn: type[Module] | None = None  # 구현체에서 해당 attn을 갈아끼움
 
     def match(self, m: Module) -> bool:
         return self.attn is not None and isinstance(m, self.attn)

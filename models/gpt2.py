@@ -1,10 +1,11 @@
 from torch.nn import Module
 
 from cache import Cache
-from models.base import Adapter
+from models.base import Adapter, register
 from shapes import KV, Query, Hidden
 
 
+@register("openai-community/gpt2")
 class GPT2(Adapter):
     def __init__(self):
         from transformers.models.gpt2.modeling_gpt2 import GPT2Attention
@@ -12,10 +13,10 @@ class GPT2(Adapter):
         self.attn = GPT2Attention
 
     def cache(self, **kwargs) -> Cache:
-        pass
+        raise NotImplementedError
 
     def layer_i(self, m: Module) -> int:
-        pass
+        raise NotImplementedError
 
     def dims(self, m: Module) -> tuple[int, int, int]:
         return m.num_heads, m.num_heads, m.head_dim

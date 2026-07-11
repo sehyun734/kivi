@@ -1,7 +1,7 @@
 import torch
 
 from quant import _pack, _unpack, quant, dequant
-from tests.harness import Checker
+from tests.checker import Checker
 from tests.diagnostics import mae
 
 torch.manual_seed(0)
