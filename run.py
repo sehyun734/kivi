@@ -1,5 +1,7 @@
 from dataclasses import dataclass
+import os
 
+from huggingface_hub import login
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer, PreTrainedModel, PreTrainedTokenizer
 from simple_parsing import parse
@@ -11,6 +13,8 @@ from patch import patch
 
 
 def load_model(model_name: str) -> tuple[PreTrainedModel, PreTrainedTokenizer]:
+    if token := os.environ.get("HF_TOKEN"):
+        login(token)
     adapter = pick(model_name)
     model = AutoModelForCausalLM.from_pretrained(model_name, dtype=torch.bfloat16, device_map="auto").eval()
     tokenizer = AutoTokenizer.from_pretrained(model_name)

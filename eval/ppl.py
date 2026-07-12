@@ -4,6 +4,7 @@ from typing import Optional
 import torch
 import torch.nn.functional as F
 from transformers import PreTrainedModel, PreTrainedTokenizer
+from tqdm.auto import tqdm
 
 from cache import Cache
 from configs import BaseConfig
@@ -13,8 +14,8 @@ from datasets import load_dataset
 
 @dataclass
 class PPLConfig:
-    seq_len: int = 2048
-    limit: Optional[int] = None
+    seq_len: int = 1024
+    limit: Optional[int] = 10
 
 
 def _load_wikitext():
@@ -41,7 +42,7 @@ def main(
         n_chunks = min(n_chunks, ppl_conf.limit)
     nll = torch.zeros((), device=device)
     n_tokens = 0
-    for i in range(n_chunks):
+    for i in tqdm(range(n_chunks), desc="ppl"):
         chunk = ids[:, i * seq_len : (i + 1) * seq_len]
         cache = Cache(conf.k_bits, conf.v_bits, conf.grp_size, conf.res_len)
         logits = model(input_ids=chunk, use_cache=True, past_key_values=cache).logits

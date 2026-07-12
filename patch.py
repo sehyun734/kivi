@@ -23,8 +23,8 @@ def _repeat_kv(x: KV, n_repeat: int) -> Query:
 def _forward(self: Module, *args, **kwargs) -> tuple[Hidden, None]:
     h: Hidden = kwargs.get("hidden_states", args[0])
     adapter: Adapter = self.adapter
-    cache: Cache = adapter.cache(**kwargs)
-    layer_i = adapter.layer_i(self)
+    cache: Cache = kwargs.get("past_key_values")
+    layer_i = self.layer_idx
     n_q_heads, n_kv_heads, head_dim = adapter.dims(self)
 
     q, k, v = adapter.qkv(self, h)

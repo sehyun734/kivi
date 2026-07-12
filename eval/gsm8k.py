@@ -5,6 +5,7 @@ from typing import Optional
 import torch
 from transformers import PreTrainedModel, PreTrainedTokenizer
 from datasets import load_dataset
+from tqdm.auto import tqdm
 
 from configs import BaseConfig
 from eval.base import register
@@ -13,8 +14,9 @@ from run import generate
 
 @dataclass
 class GSM8KConfig:
-    n_shots: int = 5
+    n_shots: int = 2
     max_tokens: int = 256
+    limit: Optional[int] = 20
 
 
 def _load_gsm8k(n_shots: int) -> tuple[str, list[tuple[str, str]]]:
@@ -45,8 +47,11 @@ def main(
     gsm8k_conf: GSM8KConfig,
 ) -> float:
     shots, tests = _load_gsm8k(gsm8k_conf.n_shots)
+    if gsm8k_conf.limit:
+        tests = tests[: gsm8k_conf.limit]
+
     n_corrects = 0
-    for question, answer in tests:
+    for question, answer in tqdm(tests, desc="gsm8k"):
         generated = generate(
             model,
             tokenizer,

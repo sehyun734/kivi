@@ -60,9 +60,11 @@ class Cache(DynamicCache):
     def _get(self, layer_i: int) -> tuple[KV, KV]:
         if layer_i not in self.K_grp:
             return self.K_res[layer_i], self.V_res[layer_i]
+        # fp32로 dequant 후 모델 dtype(bfloat16)으로 캐스팅 (dequant는 정밀도 넓게하여 오차 최대한 방지)
+        dtype = self.K_res[layer_i].dtype
         # 속도병목: 매 디코딩 스텝마다 과거 전체를 dequant 및 unpack
-        K_grp_deq = dequant(self.K_grp[layer_i], self.k_bits, self.grp_size, -2)
-        V_grp_deq = dequant(self.V_grp[layer_i], self.v_bits, self.grp_size, -1)
+        K_grp_deq = dequant(self.K_grp[layer_i], self.k_bits, self.grp_size, -2).to(dtype)
+        V_grp_deq = dequant(self.V_grp[layer_i], self.v_bits, self.grp_size, -1).to(dtype)
         return (
             torch.cat([K_grp_deq, self.K_res[layer_i]], dim=-2),
             torch.cat([V_grp_deq, self.V_res[layer_i]], dim=-2),
