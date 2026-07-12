@@ -30,14 +30,6 @@ class Adapter(ABC):
         return self.attn is not None and isinstance(m, self.attn)
 
     @abstractmethod
-    def cache(self, **kwargs) -> str:
-        pass
-
-    @abstractmethod
-    def layer_i(self, m: Module) -> int:
-        pass
-
-    @abstractmethod
     def dims(self, m: Module) -> tuple[
         int,  # n_q_heads
         int,  # n_kv_heads

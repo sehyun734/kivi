@@ -12,12 +12,6 @@ class GPT2(Adapter):
 
         self.attn = GPT2Attention
 
-    def cache(self, **kwargs) -> Cache:
-        raise NotImplementedError
-
-    def layer_i(self, m: Module) -> int:
-        raise NotImplementedError
-
     def dims(self, m: Module) -> tuple[int, int, int]:
         return m.num_heads, m.num_heads, m.head_dim
 

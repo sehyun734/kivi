@@ -12,12 +12,6 @@ class Llama2(Adapter):
 
         self.attn = LlamaAttention
 
-    def cache(self, **kwargs) -> Cache:
-        return kwargs.get("past_key_values")
-
-    def layer_i(self, m: Module) -> int:
-        return m.layer_idx
-
     def dims(self, m: Module) -> tuple[int, int, int]:
         return (
             m.config.num_attention_heads,
