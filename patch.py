@@ -21,7 +21,8 @@ def _repeat_kv(x: KV, n_repeat: int) -> Query:
 
 
 def _forward(self: Module, *args, **kwargs) -> tuple[Hidden, None]:
-    h: Hidden = kwargs.get("hidden_states", args[0])
+    # dict.get()의 경우 기본값(args[0])을 먼저 평가하여 에러 발생
+    h: Hidden = kwargs["hidden_states"] if "hidden_states" in kwargs else args[0]
     adapter: Adapter = self.adapter
     cache: Cache = kwargs.get("past_key_values")
     layer_i = self.layer_idx
