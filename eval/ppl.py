@@ -4,7 +4,6 @@ from typing import Optional
 import torch
 import torch.nn.functional as F
 from transformers import PreTrainedModel, PreTrainedTokenizer
-from tqdm.auto import tqdm
 
 from cache import Cache
 from configs import BaseConfig
@@ -15,7 +14,7 @@ from datasets import load_dataset
 @dataclass
 class PPLConfig:
     seq_len: int = 1024
-    limit: Optional[int] = 10
+    limit: Optional[int] = None
 
 
 def _load_wikitext():
@@ -42,7 +41,8 @@ def main(
         n_chunks = min(n_chunks, ppl_conf.limit)
     nll = torch.zeros((), device=device)
     n_tokens = 0
-    for i in tqdm(range(n_chunks), desc="ppl"):
+
+    for i in range(n_chunks):
         chunk = ids[:, i * seq_len : (i + 1) * seq_len]
         cache = Cache(conf.k_bits, conf.v_bits, conf.grp_size, conf.res_len)
         logits = model(input_ids=chunk, use_cache=True, past_key_values=cache).logits
@@ -51,5 +51,9 @@ def main(
         shift_labels = chunk[:, 1:].reshape(-1)
         nll += F.cross_entropy(shift_logits, shift_labels, reduction="sum")
         n_tokens += shift_labels.numel()
+
+        if (i + 1) % 50 == 0:
+            ppl = torch.exp(nll / n_tokens).item()
+            print(f"  {i + 1}/{n_chunks} ppl={ppl:.4f}", flush=True)  # stdout 버퍼링 방지 위한 flush
 
     return torch.exp(nll / n_tokens).item()

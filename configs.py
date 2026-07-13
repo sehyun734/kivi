@@ -8,3 +8,4 @@ class BaseConfig:
     v_bits: int = 2
     grp_size: int = 32
     res_len: int = 128
+    tag: str = ""
